@@ -13,7 +13,6 @@ from mmdet.utils import ConfigType, MultiConfig, OptConfigType
 import logging
 from typing import Optional
 import torch
-from .window_att import Swin
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 from .mamba_vision import crossAttention
 from .posembedding import PositionEmbeddingSine
@@ -111,7 +110,7 @@ pos_c5 = pos(c5).flatten(2).transpose(1, 2).to('cuda')
 
 
 @MODELS.register_module()
-class FPNdecoderformer_swin_double(BaseModule):
+class DRACFPN(BaseModule):
     def __init__(
         self,
         in_channels: List[int],
@@ -202,18 +201,7 @@ class FPNdecoderformer_swin_double(BaseModule):
                     act_cfg=act_cfg,
                     inplace=False)
                 self.fpn_convs.append(extra_fpn_conv)
-
-        # self.decoder_c5_c4 = Fpndecoder(input_resolution=to_2tuple(8),query_size=8, key_size=8, pretrain_size=8)
-        # self.decoder_c5_c3 = Fpndecoder(input_resolution=to_2tuple(8),query_size=8, key_size=8, pretrain_size=8)
-        # self.decoder_c4_c5 = Fpndecoder(input_resolution=to_2tuple(16),query_size=16, key_size=16, pretrain_size=16)
-        # self.decoder_c3_c5 = Fpndecoder(input_resolution=to_2tuple(32),query_size=32, key_size=32, pretrain_size=32)
-        # self.decoder_c5_c4_2 = Fpndecoder(input_resolution=to_2tuple(8),query_size=8, key_size=8, pretrain_size=8)
-        # self.decoder_c5_c3_2 = Fpndecoder(input_resolution=to_2tuple(8),query_size=8, key_size=8, pretrain_size=8)
-        # self.decoder_c4_c5_2 = Fpndecoder(input_resolution=to_2tuple(16),query_size=16, key_size=16, pretrain_size=16)
-        # self.decoder_c3_c5_2 = Fpndecoder(input_resolution=to_2tuple(32),query_size=32, key_size=32, pretrain_size=32)
-        # self.decoder_c5_c3 = Fpndecoder(input_resolution=to_2tuple(32), query_size=32, key_size=32,pretrain_size=32)
-        # self.decoder_c5_c4 = Fpndecoder(input_resolution=to_2tuple(32), query_size=32, key_size=32,pretrain_size=32)
-        # self.decoder_c3_c4_c5 = Fpndecoder(pos_c5, pos_c4, pos_c3, input_resolution=to_2tuple(32), query_size=32, key_size=32, pretrain_size=32)
+                
         self.decoder_c3_c4_c5 = Fpndecoder(pos_c5, pos_c4, pos_c3)
         
     def forward(self, inputs: Tuple[Tensor]) -> tuple:
@@ -246,25 +234,7 @@ class FPNdecoderformer_swin_double(BaseModule):
                 upsampled = F.interpolate(laterals[highest_idx], size=target_shape, **self.upsample_cfg)
 
             laterals[i] = laterals[i] + upsampled  # 融合到C3或C4
-
-        # build top-down path
-        # used_backbone_levels = len(laterals)
-        # for i in range(used_backbone_levels - 1, 0, -1):
-        #     # In some cases, fixing `scale factor` (e.g. 2) is preferred, but
-        #     #  it cannot co-exist with `size` in `F.interpolate`.
-        #     if 'scale_factor' in self.upsample_cfg:
-        #         # fix runtime error of "+=" inplace operation in PyTorch 1.10
-        #         laterals[i - 1] = laterals[i - 1] + F.interpolate(
-        #             laterals[i], **self.upsample_cfg)
-        #
-        #     else:
-        #         prev_shape = laterals[i - 1].shape[2:]
-        #         laterals[i - 1] = laterals[i - 1] + F.interpolate(
-        #             laterals[i], size=prev_shape, **self.upsample_cfg)
-        #     print(f"After fusion, laterals[{i - 1}] shape: {laterals[i - 1].shape}")
-
-        # build outputs
-        # part 1: from original levels
+            
         outs = [
             self.fpn_convs[i](laterals[i]) for i in range(used_backbone_levels)
         ]
@@ -293,18 +263,6 @@ class FPNdecoderformer_swin_double(BaseModule):
                         outs.append(self.fpn_convs[i](outs[-1]))
 
         outs[2], outs[1], outs[0] = self.decoder_c3_c4_c5(outs[2], outs[1], outs[0])
-        # outs[2],outs[1] = self.decoder_c5_c4(outs[2], outs[1])
-        # outs[2],outs[0] = self.decoder_c5_c3(outs[2], outs[0])
-        # outs[2], outs[1] = self.decoder_c5_c4(outs[2], outs[1])
-        # outs[2], outs[0] = self.decoder_c5_c3(outs[2], outs[0])
-        # outs[0] = self.decoder_c3_c5(outs[0], outs[2])
-        # outs[1] = self.decoder_c4_c5(outs[1], outs[2])
-        # outs[2] = self.decoder_c5_c4(outs[2], outs[1])
-        # outs[2] = self.decoder_c5_c3(outs[2], outs[0])
-        # outs[0] = self.decoder_c3_c5_2(outs[0], outs[2])
-        # outs[1] = self.decoder_c4_c5_2(outs[1], outs[2])
-        # outs[2] = self.decoder_c5_c4_2(outs[2], outs[1])
-        # outs[2] = self.decoder_c5_c3_2(outs[2], outs[0])
         outs[0], outs[1], outs[2] = outs[0].contiguous(), outs[1].contiguous(), outs[2].contiguous()
         
         return tuple(outs)
