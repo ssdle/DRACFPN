@@ -24,7 +24,8 @@ model = dict(
         style='pytorch',
         init_cfg=dict(type='Pretrained', checkpoint='torchvision://resnet50')),
     neck=dict(
-        type='FPNdecoderformer_swin_double',
+        #type='FPNdecoderformer_swin_double',
+        type='DRACFPN',
         in_channels=[256, 512, 1024, 2048],
         out_channels=256,
         start_level=1,
