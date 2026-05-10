@@ -24,7 +24,7 @@ class DWConv2d(nn.Module):
         # x = x.permute(0, 3, 1, 2)#(b c h w)
         return x
 
-class crossAttention(nn.Module):
+class ResidualAttention(nn.Module):
 
     def __init__(
             self,
