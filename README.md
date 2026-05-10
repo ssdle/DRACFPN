@@ -1,6 +1,9 @@
 # DRACFPN
 DRACFPN: multi-scale feature fusion for remote sensing rotating object detection based on deep residual attention channel compression
 
+# The version of mmrotate
+The version of mmrotate can be seen at https://github.com/open-mmlab/mmrotate/tree/1.x
+
 # Critical Code
 The structure of DRACFPN can be found in mmrotate-1.x/mmrotate/models/necks/DRACFPN.py
 
