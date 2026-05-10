@@ -14,7 +14,7 @@ import logging
 from typing import Optional
 import torch
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
-from .mamba_vision import crossAttention
+from .ResidualAttention import ResidualAttention
 from .posembedding import PositionEmbeddingSine
 
 def _get_activation_fn(activation):
@@ -33,8 +33,7 @@ class Fpndecoder(nn.Module):
         super(Fpndecoder, self).__init__()
         self.dropout = nn.Dropout(0.0)
         self.activation = _get_activation_fn("relu")
-        # self.MambaVisionMixer = MambaVisionMixer()
-        self.crossMambaAttention = crossAttention()
+        self.ResidualAttention = ResidualAttention()
         self.query = query_pos
         self.key = k_pos
         self.value = v_pos
@@ -76,14 +75,10 @@ class Fpndecoder(nn.Module):
         k_q = self.dropout(self.activation(F.interpolate(k, size=[pH,pW], mode="bilinear", align_corners=False)))
         v_q = self.dropout(self.activation(F.interpolate(v, size=[pH,pW], mode="bilinear", align_corners=False)))
 
-        # q =  self.MambaVisionMixer(q)
-        # k_q = self.MambaVisionMixer(k_q)
-        q = self.crossMambaAttention(q, k_q)
+        q = self.ResidualAttention(q, k_q)
 
         #通道拆分
-        # q = self.MambaVisionMixer(q)
-        # v_q = self.MambaVisionMixer(v_q)
-        q = self.crossMambaAttention(q, v_q)
+        q = self.ResidualAttention(q, v_q)
         q = q.reshape(b, 64, -1).transpose(1, 2)
         q = self.linear2(q).transpose(1, 2).reshape(-1, 256, pH, pW)
         q = F.interpolate(q, size=[h,w], mode="bilinear", align_corners=False)
